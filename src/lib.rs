@@ -148,12 +148,6 @@ impl CircBuf {
         return self.avail() == 0;
     }
 
-    /// Find the first occurence of `val` in the buffer. If `val` exists in the buffer
-    /// return the index of the first occurence of `val` else return `None`.
-    pub fn find(&self, val: u8) -> Option<usize> {
-        self.find_from_index(val, 0)
-    }
-
     /// Find the first occurence of `val` in the buffer starting from `index`. If `val`
     /// exists in the buffer return the index of the first occurence of `val` else return
     /// `None`.
@@ -187,6 +181,13 @@ impl CircBuf {
 
             None
         }
+    }
+
+    /// Find the first occurence of `val` in the buffer. If `val` exists in the buffer
+    /// return the index of the first occurence of `val` else return `None`. A convenience
+    /// method for `find_from_index` with 0 as the index.
+    pub fn find(&self, val: u8) -> Option<usize> {
+        self.find_from_index(val, 0)
     }
 
     /// Get the next byte to be read from the buffer without removing it from it the buffer.
@@ -241,14 +242,6 @@ impl CircBuf {
         self.read_cursor = 0;
     }
 
-    /// Grow the size of the buffer. The buffer will be expanded by a factor of
-    /// `DEFAULT_SIZE_MULTIPLIER`. If the size of the buffer will overflow `usize`
-    /// then `CircBufError::Overflow` will be returned else an empty tuple `()` will
-    /// be returned.
-    pub fn grow(&mut self) -> Result<(), CircBufError> {
-        self.grow_with_factor(DEFAULT_SIZE_MULTIPLIER)
-    }
-
     /// Grow the size of the buffer by `factor`. The size of the buffer will be rounded
     /// up to the nearest power of two that is greater than or equal to the the current
     /// size of the buffer multiplied by `factor`. If the size of the buffer will overflow
@@ -295,33 +288,45 @@ impl CircBuf {
         Ok(())
     }
 
+    /// Grow the size of the buffer. The buffer will be expanded by a factor of
+    /// `DEFAULT_SIZE_MULTIPLIER`. If the size of the buffer will overflow `usize`
+    /// then `CircBufError::Overflow` will be returned else an empty tuple `()` will
+    /// be returned.
+    pub fn grow(&mut self) -> Result<(), CircBufError> {
+        self.grow_with_factor(DEFAULT_SIZE_MULTIPLIER)
+    }
+
     /// Return an array that contains two mutable slices which point to the available
-    /// bytes in the buffer. If the available bytes in the buffer are contiguous then
-    /// the second slice will be of size zero. Otherwise, the first slice will point to
-    /// the bytes available at the end of the buffer and the second slice will point to
-    /// the bytes available at the start of the buffer. A pointer to the array can be
-    /// used for vector IO.
-    pub fn get_avail(&mut self) -> [&mut [u8]; 2] {
+    /// bytes in the buffer. The combined lengths of the slices will be the minimum
+    /// of `size` and `self.avail()`. If the available bytes in the buffer are contiguous
+    /// then the second slice will be of size zero. Otherwise, the first slice will point
+    /// to the bytes available at the end of the buffer and the second slice will point
+    /// to the bytes available at the start of the buffer. The array can be used for
+    /// vector IO.
+    pub fn get_avail_upto_size(&mut self, size: usize) -> [&mut [u8]; 2] {
         let first_buf;
         let second_buf;
-        if self.write_cursor < self.read_cursor {
-            // the writable section is contiguous so our second buffer will have a size of zero
+
+        let min = if self.avail() < size {
+            self.avail()
+        } else {
+            size
+        };
+
+        if self.write_cursor >= self.read_cursor && min > self.buf.len() - self.write_cursor {
+            // the min available bytes wrap around the buffer, so we need to two slices to access
+            // the available bytes at the end and the start of the buffer
             unsafe {
                 first_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor],
-                                               self.read_cursor - self.write_cursor - 1);
-                second_buf = from_raw_parts_mut(&mut self.buf[self.read_cursor], 0);
+                                               self.buf.len() - self.write_cursor);
+                second_buf = from_raw_parts_mut(&mut self.buf[0],
+                                                min - (self.buf.len() - self.write_cursor));
             }
         } else {
+            // the min available bytes are contiguous so our second buffer will have size zero
             unsafe {
-                if self.read_cursor != 0 {
-                    first_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor],
-                                                   self.buf.len() - self.write_cursor);
-                    second_buf = from_raw_parts_mut(&mut self.buf[0], self.read_cursor - 1);
-                } else {
-                    first_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor],
-                                                   self.buf.len() - self.write_cursor - 1);
-                    second_buf = from_raw_parts_mut(&mut self.buf[0], 0);
-                }
+                first_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor], min);
+                second_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor], 0);
             }
         }
 
@@ -329,29 +334,51 @@ impl CircBuf {
     }
 
     /// Return an array that contains two slices which point to the bytes that have been
-    /// written to the buffer. If the bytes are contiguous then the second slice will be
+    /// written to the buffer. The combined lengths of the slices will be the minimum
+    /// of `size` and `self.len()`. If the bytes are contiguous then the second slice will be
     /// of size zero. Otherwise, the first slice will point to the bytes at the end of the
     /// buffer and the second slice will point to the bytes available at the start of the
     /// buffer.
-    pub fn get_bytes(&mut self) -> [&[u8]; 2] {
+    pub fn get_bytes_upto_size(&mut self, size: usize) -> [&[u8]; 2] {
         let first_buf;
         let second_buf;
-        if self.write_cursor < self.read_cursor {
+
+
+        let min = if self.len() < size { self.len() } else { size };
+
+        if self.write_cursor < self.read_cursor && min > self.buf.len() - self.read_cursor {
+            // the min bytes to be read wrap around the buffer so we need two slices
             unsafe {
                 first_buf = from_raw_parts(&self.buf[self.read_cursor],
                                            self.buf.len() - self.read_cursor);
-                second_buf = from_raw_parts(&self.buf[0], self.write_cursor);
+                second_buf = from_raw_parts(&self.buf[0],
+                                            min - (self.buf.len() - self.read_cursor));
             }
         } else {
-            // the readable section is contiguous so our second buffer will have a size of zero
+            // the min bytes to be read are contiguous so our second buffer will be of size zero
             unsafe {
-                first_buf = from_raw_parts(&self.buf[self.read_cursor],
-                                           self.write_cursor - self.read_cursor);
+                first_buf = from_raw_parts(&self.buf[self.read_cursor], min);
                 second_buf = from_raw_parts(&self.buf[self.read_cursor], 0);
             }
         }
 
         [first_buf, second_buf]
+    }
+
+    /// Return an array that contains two slices which point to the bytes that are available
+    /// in the buffer. A convenience method for `get_avail_upto_size` with `size` equal to
+    /// `self.avail()` so all bytes written available in buffer will be returned.
+    pub fn get_avail(&mut self) -> [&mut [u8]; 2] {
+        let avail = self.avail();
+        self.get_avail_upto_size(avail)
+    }
+
+    /// Return an array that contains two slices which point to the bytes that have been
+    /// written to the buffer. A convenience method for `get_bytes_upto_size` with `size`
+    /// equal to `self.len()` so all bytes written to the buffer will be returned.
+    pub fn get_bytes(&mut self) -> [&[u8]; 2] {
+        let len = self.len();
+        self.get_bytes_upto_size(len)
     }
 }
 
@@ -595,7 +622,118 @@ mod tests {
         assert!(b"foobar".iter().zip(buf.iter()).all(|(a, b)| a == b));
     }
 
-    // TODO: test vecio
+    #[test]
+    fn get_bytes_and_avail() {
+        let mut c = CircBuf::with_capacity(16).unwrap();
+
+        assert_eq!(c.write(b"funkytowns").unwrap(), 10);
+        assert_eq!(c.len(), 10);
+        assert_eq!(c.avail(), 5);
+
+        {
+            let bufs = c.get_avail_upto_size(4);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 4);
+            assert_eq!(bufs[1].len(), 0);
+
+        }
+
+        {
+            let bufs = c.get_bytes_upto_size(5);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 5);
+            assert_eq!(bufs[1].len(), 0);
+            assert!(b"funky".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+        }
+
+        // test when size is greate than `c.avail()` and `c.len()` respectively
+        {
+            let bufs = c.get_avail_upto_size(10);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 5);
+            assert_eq!(bufs[1].len(), 0);
+
+        }
+
+        {
+            let bufs = c.get_bytes_upto_size(12);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 10);
+            assert_eq!(bufs[1].len(), 0);
+            assert!(b"funky".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+        }
+
+        {
+            let bufs = c.get_avail();
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 5);
+            assert_eq!(bufs[1].len(), 0);
+        }
+
+        {
+            let bufs = c.get_bytes();
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 10);
+            assert_eq!(bufs[1].len(), 0);
+            assert!(b"funkytowns".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+        }
+
+        // test when the buffer wraps around
+        c.advance_read(10);
+        assert_eq!(c.write(b"brickhouse").unwrap(), 10);
+        assert_eq!(c.len(), 10);
+        assert_eq!(c.avail(), 5);
+
+        {
+            let bufs = c.get_avail_upto_size(4);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 4);
+            assert_eq!(bufs[1].len(), 0);
+        }
+
+        {
+            let bufs = c.get_bytes_upto_size(8);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 6);
+            assert_eq!(bufs[1].len(), 2);
+            assert!(b"brickh".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+            assert!(b"ou".iter().zip(bufs[1].iter()).all(|(a, b)| a == b));
+        }
+
+        // test when size is greate than `c.avail()` and `c.len()` respectively
+        {
+            let bufs = c.get_avail_upto_size(17);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 5);
+            assert_eq!(bufs[1].len(), 0);
+        }
+
+        {
+            let bufs = c.get_bytes_upto_size(12);
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 6);
+            assert_eq!(bufs[1].len(), 4);
+            assert!(b"brickh".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+            assert!(b"ouse".iter().zip(bufs[1].iter()).all(|(a, b)| a == b));
+        }
+
+        {
+            let bufs = c.get_avail();
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 5);
+            assert_eq!(bufs[1].len(), 0);
+        }
+
+        {
+            let bufs = c.get_bytes();
+            assert_eq!(bufs.len(), 2);
+            assert_eq!(bufs[0].len(), 6);
+            assert_eq!(bufs[1].len(), 4);
+            assert!(b"brickh".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+            assert!(b"ouse".iter().zip(bufs[1].iter()).all(|(a, b)| a == b));
+        }
+    }
+
     #[test]
     fn vecio() {
         let mut c = CircBuf::with_capacity(16).unwrap();
@@ -614,10 +752,21 @@ mod tests {
         assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
         file.seek(SeekFrom::Current(-12)).unwrap();
 
-        let mut bufs = c.get_avail();
-        assert_eq!(file.readv(&mut bufs).unwrap(), 12);
+        {
+            let mut bufs = c.get_avail();
+            assert_eq!(file.readv(&mut bufs).unwrap(), 12);
+        }
 
-        // TODO: advance_write the number of bytes written and test wrap around
+        // advance the write cursor since we just wrote 12 bytes to the buffer
+        c.advance_write(12);
+
+        // wrap around the buffer
+        c.advance_read(12);
+        assert_eq!(c.write(b"fizzbuzz").unwrap(), 8);
+
+        let mut s = String::new();
+        assert_eq!(c.read_to_string(&mut s).unwrap(), 8);
+        assert_eq!(s, "fizzbuzz");
     }
 
     #[bench]
