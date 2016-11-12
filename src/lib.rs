@@ -151,6 +151,17 @@ impl CircBuf {
     /// Find the first occurence of `val` in the buffer. If `val` exists in the buffer
     /// return the index of the first occurence of `val` else return `None`.
     pub fn find(&self, val: u8) -> Option<usize> {
+        find_from_index(val, 0)
+    }
+
+    /// Find the first occurence of `val` in the buffer starting from `index`. If `val`
+    /// exists in the buffer return the index of the first occurence of `val` else return
+    /// `None`.
+    pub fn find_from_index(&self, val: u8, index: usize) -> Option<usize> {
+        if index >= self.len() {
+            return None;
+        }
+
         if self.write_cursor < self.read_cursor {
             for (i, b) in self.buf[self.read_cursor..].iter().enumerate() {
                 if *b == val {
