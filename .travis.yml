@@ -1,8 +1,6 @@
 language: rust
 rust:
-  - stable
-  - beta
+  # can't test on stable or beta presently because `#![feature(test)]` is not stable yet
+  # - stable
+  # - beta
   - nightly
-matrix:
-  allow_failures:
-    - rust: nightly

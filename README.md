@@ -1,3 +1,7 @@
+# CircBuf
+
+[![Build Status](https://travis-ci.org/jeromefroe/circbuf-rs.svg?branch=master)](https://travis-ci.org/jeromefroe/circbuf-rs)
+
 An implementation of a growable circular buffer of bytes. The `CircBuf` struct
 manages a buffer of bytes allocated on the heap. The buffer can be grown when needed
 and can return slices into its internal buffer that can be used for both normal IO
@@ -7,7 +11,7 @@ and can return slices into its internal buffer that can be used for both normal 
 
 Below is a simple example of a server which makes use of a `CircBuf` to read messages
 from a client. It uses the `vecio` crate to call `readv` and `writev` on the socket.
-Messages are seperated by a vertical bar '|' and the server returns to the client
+Messages are seperated by a vertical bar `|` and the server returns to the client
 the number of bytes in each message it receives.
 
 ```rust
