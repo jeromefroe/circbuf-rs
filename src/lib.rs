@@ -151,7 +151,7 @@ impl CircBuf {
     /// Find the first occurence of `val` in the buffer. If `val` exists in the buffer
     /// return the index of the first occurence of `val` else return `None`.
     pub fn find(&self, val: u8) -> Option<usize> {
-        find_from_index(val, 0)
+        self.find_from_index(val, 0)
     }
 
     /// Find the first occurence of `val` in the buffer starting from `index`. If `val`
@@ -163,9 +163,11 @@ impl CircBuf {
         }
 
         if self.write_cursor < self.read_cursor {
-            for (i, b) in self.buf[self.read_cursor..].iter().enumerate() {
-                if *b == val {
-                    return Some(i);
+            if self.read_cursor + index < self.buf.len() {
+                for (i, b) in self.buf[self.read_cursor + index..].iter().enumerate() {
+                    if *b == val {
+                        return Some(i + index);
+                    }
                 }
             }
 
@@ -177,9 +179,9 @@ impl CircBuf {
 
             None
         } else {
-            for (i, b) in self.buf[self.read_cursor..self.write_cursor].iter().enumerate() {
+            for (i, b) in self.buf[self.read_cursor + index..self.write_cursor].iter().enumerate() {
                 if *b == val {
-                    return Some(i);
+                    return Some(i + index);
                 }
             }
 
@@ -501,7 +503,6 @@ mod tests {
     fn find_bytes() {
         let mut c = CircBuf::with_capacity(8).unwrap();
 
-        // assign to _ so we don't get unused variable warnings
         c.put(7).unwrap();
         c.put(6).unwrap();
         c.put(5).unwrap();
@@ -511,6 +512,8 @@ mod tests {
         c.put(1).unwrap();
 
         assert_eq!(c.find(4).unwrap(), 3);
+        assert_eq!(c.find_from_index(3, 2).unwrap(), 4);
+        assert!(c.find_from_index(6, 2).is_none());
 
         c.advance_read(4);
 
@@ -523,6 +526,7 @@ mod tests {
         c.put(12).unwrap();
 
         assert_eq!(c.find(12).unwrap(), 5);
+        assert_eq!(c.find_from_index(12, 4).unwrap(), 5);
     }
 
     #[test]
