@@ -108,9 +108,10 @@
 //!     }
 //! }
 //! ```
-#![feature(test)]
 
-extern crate test;
+// need to uncomment this to run benchmarks
+// #![feature(test)]
+// extern crate test;
 extern crate vecio;
 
 use std::io;
@@ -547,7 +548,8 @@ mod tests {
     use std::fs::OpenOptions;
     use vecio::Rawv;
     use super::{CircBuf, DEFAULT_CAPACITY, CircBufError};
-    use test::Bencher;
+    // uncomment below to run benchmarks
+    // use test::Bencher;
 
     #[test]
     fn create_circbuf() {
@@ -852,79 +854,79 @@ mod tests {
         assert_eq!(s, "fizzbuzz");
     }
 
-    #[bench]
-    pub fn normal_read(b: &mut Bencher) {
-        let mut c = CircBuf::with_capacity(16).unwrap();
+    // #[bench]
+    // pub fn normal_read(b: &mut Bencher) {
+    //     let mut c = CircBuf::with_capacity(16).unwrap();
 
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
+    //     let mut path = env::temp_dir();
+    //     path.push("circbuf-rs-test.txt");
 
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
+    //     let mut file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .truncate(true)
+    //         .open(path.to_str().unwrap())
+    //         .unwrap();
 
-        assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
-        file.seek(SeekFrom::Current(-12)).unwrap();
+    //     assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
+    //     file.seek(SeekFrom::Current(-12)).unwrap();
 
-        c.advance_read(8);
-        c.advance_write(8);
-        let mut bufs = c.get_avail();
+    //     c.advance_read(8);
+    //     c.advance_write(8);
+    //     let mut bufs = c.get_avail();
 
-        b.iter(|| {
-            file.read(&mut bufs[0]).unwrap();
-            file.read(&mut bufs[1]).unwrap();
-            file.seek(SeekFrom::Current(-12)).unwrap();
-        })
-    }
+    //     b.iter(|| {
+    //         file.read(&mut bufs[0]).unwrap();
+    //         file.read(&mut bufs[1]).unwrap();
+    //         file.seek(SeekFrom::Current(-12)).unwrap();
+    //     })
+    // }
 
-    #[bench]
-    pub fn vector_read(b: &mut Bencher) {
-        let mut c = CircBuf::with_capacity(16).unwrap();
+    // #[bench]
+    // pub fn vector_read(b: &mut Bencher) {
+    //     let mut c = CircBuf::with_capacity(16).unwrap();
 
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
+    //     let mut path = env::temp_dir();
+    //     path.push("circbuf-rs-test.txt");
 
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
+    //     let mut file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .truncate(true)
+    //         .open(path.to_str().unwrap())
+    //         .unwrap();
 
-        assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
-        file.seek(SeekFrom::Current(-12)).unwrap();
+    //     assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
+    //     file.seek(SeekFrom::Current(-12)).unwrap();
 
-        c.advance_read(8);
-        c.advance_write(8);
-        let mut bufs = c.get_avail();
+    //     c.advance_read(8);
+    //     c.advance_write(8);
+    //     let mut bufs = c.get_avail();
 
-        b.iter(|| {
-            file.readv(&mut bufs).unwrap();
-            file.seek(SeekFrom::Current(-12)).unwrap();
-        })
-    }
+    //     b.iter(|| {
+    //         file.readv(&mut bufs).unwrap();
+    //         file.seek(SeekFrom::Current(-12)).unwrap();
+    //     })
+    // }
 
-    #[bench]
-    // we call seek in iter in both benches above so lets get a base time for it
-    pub fn seek_base(b: &mut Bencher) {
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
+    // #[bench]
+    // // we call seek in iter in both benches above so lets get a base time for it
+    // pub fn seek_base(b: &mut Bencher) {
+    //     let mut path = env::temp_dir();
+    //     path.push("circbuf-rs-test.txt");
 
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
+    //     let mut file = OpenOptions::new()
+    //         .read(true)
+    //         .write(true)
+    //         .create(true)
+    //         .truncate(true)
+    //         .open(path.to_str().unwrap())
+    //         .unwrap();
 
-        b.iter(|| {
-            file.seek(SeekFrom::Current(1)).unwrap();
-        })
-    }
+    //     b.iter(|| {
+    //         file.seek(SeekFrom::Current(1)).unwrap();
+    //     })
+    // }
 }

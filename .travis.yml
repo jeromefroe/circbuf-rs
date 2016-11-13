@@ -1,6 +1,5 @@
 language: rust
 rust:
-  # can't test on stable or beta presently because `#![feature(test)]` is not stable yet
-  # - stable
-  # - beta
+  - stable
+  - beta
   - nightly
