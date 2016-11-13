@@ -10,5 +10,8 @@ readme = "README.md"
 license = "MIT"
 keywords = ["buffer", "bytes", "circular", "ring"]
 
-[dependencies]
+[features]
+nightly = []
+
+[dev-dependencies]
 vecio = "0.1.0"
