@@ -7,7 +7,7 @@ homepage = "https://github.com/jeromefroe/circbuf-rs"
 repository = "https://github.com/jeromefroe/circbuf-rs.git"
 readme = "README.md"
 license = "MIT"
-keywords = ["buffer", "bytes"]
+keywords = ["buffer", "bytes", "circular", "ring"]
 
 [dependencies]
 vecio = "0.1.0"
