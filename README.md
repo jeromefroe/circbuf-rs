@@ -1,6 +1,11 @@
 # CircBuf
 
 [![Build Status](https://travis-ci.org/jeromefroe/circbuf-rs.svg?branch=master)](https://travis-ci.org/jeromefroe/circbuf-rs)
+[![crates.io](https://img.shields.io/crates/v/circbuf.svg)](https://crates.io/crates/circbuf/)
+[![docs.rs](https://docs.rs/circbuf/badge.svg)](https://docs.rs/circbuf/)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/jeromefroe/circbuf-rs/master/LICENSE)
+
+[Documentation](https://docs.rs/circbuf/)
 
 An implementation of a growable circular buffer of bytes. The `CircBuf` struct
 manages a buffer of bytes allocated on the heap. The buffer can be grown when needed

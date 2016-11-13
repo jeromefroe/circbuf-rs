@@ -1,10 +1,11 @@
 [package]
 name = "circbuf"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["Jerome Froelich <jeromefroelich@hotmail.com>"]
-description = "A growable circular buffer for working withy bytes"
+description = "A growable circular buffer for working with bytes"
 homepage = "https://github.com/jeromefroe/circbuf-rs"
 repository = "https://github.com/jeromefroe/circbuf-rs.git"
+documentation = "https://docs.rs/circbuf/"
 readme = "README.md"
 license = "MIT"
 keywords = ["buffer", "bytes", "circular", "ring"]
