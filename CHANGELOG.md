@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.3](https://github.com/jeromefroe/circbuf-rs/tree/0.1.3) - 2016-11-13
+
+* Make vecio a dev-dependency and add cfg attributes to only run benchmarks on nightly.
+
 ## [v0.1.2](https://github.com/jeromefroe/circbuf-rs/tree/0.1.2) - 2016-11-12
 
 * Commented out benchmarks so we can build on stable.
