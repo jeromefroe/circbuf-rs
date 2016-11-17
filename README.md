@@ -16,9 +16,8 @@ and can return slices into its internal buffer that can be used for both normal 
 ## Example
 
 Below is a simple example of a server which makes use of a `CircBuf` to read messages
-from a client. It uses the `vecio` crate to call `readv` and `writev` on the socket.
-Messages are seperated by a vertical bar `|` and the server returns to the client
-the number of bytes in each message it receives.
+from a client. It uses the `vecio` crate to call `readv` on the socket. Messages are seperated by a
+vertical bar `|` and the server returns to the client the number of bytes in each message it receives.
 
 ```rust
 extern crate vecio;
