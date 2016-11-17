@@ -64,15 +64,15 @@ fn handle_client(mut stream: TcpStream) {
         loop {
             match buf.find_from_index(b'|', num_bytes) {
                 Some(i) => {
-                    // update read cursor past '|' and reset num_bytes since last '|'
-                    buf.advance_read(i + 1);
-                    num_bytes = 0;
-                    num_messages += 1;
-
-                    let response = format!("Message {} contained {} bytes\n", num_messages, i - 1); // don't inclue '|' in num_bytes
+                    let response = format!("Message {} contained {} bytes\n", num_messages, num_bytes + i - 1); // don't include '|' in number of bytes
                     match stream.write(&response.as_bytes()) {
                         Ok(n) => {
                             println!("wrote {} bytes to the client", n);
+
+                            // update read cursor past '|' and reset num_bytes since last '|'
+                            buf.advance_read(i + 1);
+                            num_bytes = 0;
+                            num_messages += 1;
                         }
                         Err(e) => panic!("got an error writing to connection: {}", e),
                     }
