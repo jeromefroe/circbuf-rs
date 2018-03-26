@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.4](https://github.com/jeromefroe/circbuf-rs/tree/0.1.4) - 2018-03-26
+
+* Check for empty writes to fix panic.
+
 ## [v0.1.3](https://github.com/jeromefroe/circbuf-rs/tree/0.1.3) - 2016-11-13
 
 * Make vecio a dev-dependency and add cfg attributes to only run benchmarks on nightly.

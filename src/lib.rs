@@ -503,7 +503,7 @@ impl io::Write for CircBuf {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let avail = self.avail();
 
-        if avail == 0 {
+        if avail == 0 || buf.len() == 0 {
             return Ok(0);
         }
 
@@ -682,6 +682,9 @@ mod tests {
 
         assert_eq!(c.write(b"foo").unwrap(), 3);
         assert_eq!(c.write(b"bar").unwrap(), 3);
+
+        // ignore empty writes
+        assert_eq!(c.write(b"").unwrap(), 0);
 
         assert_eq!(c.cap(), 7);
         assert_eq!(c.avail(), 1);
