@@ -113,13 +113,13 @@
 #[cfg(feature = "nightly")]
 extern crate test;
 
-use std::io;
+use std::boxed::Box;
 use std::error;
 use std::fmt;
-use std::boxed::Box;
+use std::io;
+use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 use std::slice::from_raw_parts_mut;
-use std::ptr::copy_nonoverlapping;
 
 /// Default size of the circular buffer is 1 page
 pub const DEFAULT_CAPACITY: usize = 4096;
@@ -165,7 +165,7 @@ impl error::Error for CircBufError {
 /// Circular Buffer
 ///
 /// A growable circular buffer for use with bytes.
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct CircBuf {
     buf: Box<[u8]>,
     write_cursor: usize,
@@ -223,12 +223,12 @@ impl CircBuf {
 
     /// Get a `bool` indicating whether the buffer is empty or not.
     pub fn is_empty(&self) -> bool {
-        return self.len() == 0;
+        self.len() == 0
     }
 
     /// Get a `bool` indicating whether the buffer is full or not.
     pub fn is_full(&self) -> bool {
-        return self.avail() == 0;
+        self.avail() == 0
     }
 
     /// Find the first occurence of `val` in the buffer starting from `index`. If `val`
@@ -256,7 +256,10 @@ impl CircBuf {
 
             None
         } else {
-            for (i, b) in self.buf[self.read_cursor + index..self.write_cursor].iter().enumerate() {
+            for (i, b) in self.buf[self.read_cursor + index..self.write_cursor]
+                .iter()
+                .enumerate()
+            {
                 if *b == val {
                     return Some(i + index);
                 }
@@ -276,7 +279,7 @@ impl CircBuf {
     /// Get the next byte to be read from the buffer without removing it from it the buffer.
     /// Returns the byte if the buffer is not empty, else returns a `BufEmpty` error.
     pub fn peek(&self) -> Result<u8, CircBufError> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Err(CircBufError::BufEmpty);
         }
 
@@ -286,7 +289,7 @@ impl CircBuf {
     /// Get the next byte to be read from the buffer and remove it from it the buffer.
     /// Returns the byte if the buffer is not empty, else returns a `BufEmpty` error.
     pub fn get(&mut self) -> Result<u8, CircBufError> {
-        if self.len() == 0 {
+        if self.is_empty() {
             return Err(CircBufError::BufEmpty);
         }
 
@@ -400,10 +403,14 @@ impl CircBuf {
             // the min available bytes wrap around the buffer, so we need to two slices to access
             // the available bytes at the end and the start of the buffer
             unsafe {
-                first_buf = from_raw_parts_mut(&mut self.buf[self.write_cursor],
-                                               self.buf.len() - self.write_cursor);
-                second_buf = from_raw_parts_mut(&mut self.buf[0],
-                                                min - (self.buf.len() - self.write_cursor));
+                first_buf = from_raw_parts_mut(
+                    &mut self.buf[self.write_cursor],
+                    self.buf.len() - self.write_cursor,
+                );
+                second_buf = from_raw_parts_mut(
+                    &mut self.buf[0],
+                    min - (self.buf.len() - self.write_cursor),
+                );
             }
         } else {
             // the min available bytes are contiguous so our second buffer will have size zero
@@ -426,16 +433,18 @@ impl CircBuf {
         let first_buf;
         let second_buf;
 
-
-        let min = if self.len() < size { self.len() } else { size };
+        let min =
+            if self.len() < size { self.len() } else { size };
 
         if self.write_cursor < self.read_cursor && min > self.buf.len() - self.read_cursor {
             // the min bytes to be read wrap around the buffer so we need two slices
             unsafe {
-                first_buf = from_raw_parts(&self.buf[self.read_cursor],
-                                           self.buf.len() - self.read_cursor);
-                second_buf = from_raw_parts(&self.buf[0],
-                                            min - (self.buf.len() - self.read_cursor));
+                first_buf = from_raw_parts(
+                    &self.buf[self.read_cursor],
+                    self.buf.len() - self.read_cursor,
+                );
+                second_buf =
+                    from_raw_parts(&self.buf[0], min - (self.buf.len() - self.read_cursor));
             }
         } else {
             // the min bytes to be read are contiguous so our second buffer will be of size zero
@@ -473,7 +482,11 @@ impl io::Read for CircBuf {
             return Ok(0);
         }
 
-        let num_to_read = if len < buf.len() { len } else { buf.len() };
+        let num_to_read = if len < buf.len() {
+            len
+        } else {
+            buf.len()
+        };
 
         if self.write_cursor < self.read_cursor {
             // check if we need to wrap around the buffer to read num_to_read bytes
@@ -503,11 +516,15 @@ impl io::Write for CircBuf {
     fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
         let avail = self.avail();
 
-        if avail == 0 || buf.len() == 0 {
+        if avail == 0 || buf.is_empty() {
             return Ok(0);
         }
 
-        let num_to_write = if avail < buf.len() { avail } else { buf.len() };
+        let num_to_write = if avail < buf.len() {
+            avail
+        } else {
+            buf.len()
+        };
 
         if self.write_cursor < self.read_cursor {
             unsafe { copy_nonoverlapping(&buf[0], &mut self.buf[self.write_cursor], num_to_write) };
@@ -543,12 +560,12 @@ impl io::Write for CircBuf {
 mod tests {
     extern crate vecio;
 
+    use self::vecio::Rawv;
+    use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
     use std::env;
     use std::error::Error;
-    use std::io::{Read, Write, Seek, SeekFrom};
     use std::fs::OpenOptions;
-    use self::vecio::Rawv;
-    use super::{CircBuf, DEFAULT_CAPACITY, CircBufError};
+    use std::io::{Read, Seek, SeekFrom, Write};
 
     #[cfg(feature = "nightly")]
     use test::Bencher;
@@ -581,8 +598,10 @@ mod tests {
         c.put(2).unwrap();
         c.put(3).unwrap();
 
-        assert_eq!(c.put(4).unwrap_err().description(),
-                   CircBufError::BufFull.description());
+        assert_eq!(
+            c.put(4).unwrap_err().description(),
+            CircBufError::BufFull.description()
+        );
         assert_eq!(c.avail(), 0);
         assert_eq!(c.len(), 3);
         assert!(c.is_full());
@@ -593,8 +612,10 @@ mod tests {
         assert_eq!(c.get().unwrap(), 2);
         assert_eq!(c.peek().unwrap(), 3);
         assert_eq!(c.get().unwrap(), 3);
-        assert_eq!(c.get().unwrap_err().description(),
-                   CircBufError::BufEmpty.description());
+        assert_eq!(
+            c.get().unwrap_err().description(),
+            CircBufError::BufEmpty.description()
+        );
 
         assert_eq!(c.avail(), 3);
         assert_eq!(c.len(), 0);
@@ -725,7 +746,6 @@ mod tests {
             assert_eq!(bufs.len(), 2);
             assert_eq!(bufs[0].len(), 4);
             assert_eq!(bufs[1].len(), 0);
-
         }
 
         {
@@ -742,7 +762,6 @@ mod tests {
             assert_eq!(bufs.len(), 2);
             assert_eq!(bufs[0].len(), 5);
             assert_eq!(bufs[1].len(), 0);
-
         }
 
         {
@@ -765,7 +784,12 @@ mod tests {
             assert_eq!(bufs.len(), 2);
             assert_eq!(bufs[0].len(), 10);
             assert_eq!(bufs[1].len(), 0);
-            assert!(b"funkytowns".iter().zip(bufs[0].iter()).all(|(a, b)| a == b));
+            assert!(
+                b"funkytowns"
+                    .iter()
+                    .zip(bufs[0].iter())
+                    .all(|(a, b)| a == b)
+            );
         }
 
         // test when the buffer wraps around
