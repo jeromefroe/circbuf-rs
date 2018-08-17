@@ -433,8 +433,7 @@ impl CircBuf {
         let first_buf;
         let second_buf;
 
-        let min =
-            if self.len() < size { self.len() } else { size };
+        let min = if self.len() < size { self.len() } else { size };
 
         if self.write_cursor < self.read_cursor && min > self.buf.len() - self.read_cursor {
             // the min bytes to be read wrap around the buffer so we need two slices
@@ -482,11 +481,7 @@ impl io::Read for CircBuf {
             return Ok(0);
         }
 
-        let num_to_read = if len < buf.len() {
-            len
-        } else {
-            buf.len()
-        };
+        let num_to_read = if len < buf.len() { len } else { buf.len() };
 
         if self.write_cursor < self.read_cursor {
             // check if we need to wrap around the buffer to read num_to_read bytes
@@ -520,11 +515,7 @@ impl io::Write for CircBuf {
             return Ok(0);
         }
 
-        let num_to_write = if avail < buf.len() {
-            avail
-        } else {
-            buf.len()
-        };
+        let num_to_write = if avail < buf.len() { avail } else { buf.len() };
 
         if self.write_cursor < self.read_cursor {
             unsafe { copy_nonoverlapping(&buf[0], &mut self.buf[self.write_cursor], num_to_write) };
