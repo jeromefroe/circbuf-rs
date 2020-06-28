@@ -117,6 +117,7 @@ use std::boxed::Box;
 use std::error;
 use std::fmt;
 use std::io;
+use std::mem::{transmute, MaybeUninit};
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 use std::slice::from_raw_parts_mut;
@@ -429,7 +430,7 @@ impl CircBuf {
     /// of size zero. Otherwise, the first slice will point to the bytes at the end of the
     /// buffer and the second slice will point to the bytes available at the start of the
     /// buffer.
-    pub fn get_bytes_upto_size(&mut self, size: usize) -> [&[u8]; 2] {
+    pub fn get_bytes_upto_size(&self, size: usize) -> [&[u8]; 2] {
         let first_buf;
         let second_buf;
 
@@ -467,7 +468,7 @@ impl CircBuf {
     /// Return an array that contains two slices which point to the bytes that have been
     /// written to the buffer. A convenience method for `get_bytes_upto_size` with `size`
     /// equal to `self.len()` so all bytes written to the buffer will be returned.
-    pub fn get_bytes(&mut self) -> [&[u8]; 2] {
+    pub fn get_bytes(&self) -> [&[u8]; 2] {
         let len = self.len();
         self.get_bytes_upto_size(len)
     }
@@ -544,6 +545,82 @@ impl io::Write for CircBuf {
     fn flush(&mut self) -> io::Result<()> {
         self.clear();
         Ok(())
+    }
+}
+
+#[cfg(feature = "bytes")]
+impl bytes_rs::Buf for CircBuf {
+    fn remaining(&self) -> usize {
+        self.len()
+    }
+
+    fn advance(&mut self, count: usize) {
+        assert!(count == 0 || count <= self.remaining());
+        self.advance_read(count);
+    }
+
+    fn bytes(&self) -> &[u8] {
+        let [left, right] = self.get_bytes();
+        match (left.is_empty(), right.is_empty()) {
+            (true, true) => left,
+            (true, false) => right,
+            (false, true) => left,
+            (false, false) => left,
+        }
+    }
+
+    fn bytes_vectored<'a>(&'a self, dst: &mut [std::io::IoSlice<'a>]) -> usize {
+        let [left, right] = self.get_bytes();
+        let mut count = 0;
+        if let Some(slice) = dst.get_mut(0) {
+            count += 1;
+            *slice = std::io::IoSlice::new(left);
+        }
+        if let Some(slice) = dst.get_mut(1) {
+            count += 1;
+            *slice = std::io::IoSlice::new(right);
+        }
+        count
+    }
+}
+
+#[cfg(feature = "bytes")]
+impl bytes_rs::BufMut for CircBuf {
+    fn remaining_mut(&self) -> usize {
+        self.avail()
+    }
+
+    unsafe fn advance_mut(&mut self, count: usize) {
+        assert!(count == 0 || count <= self.remaining_mut());
+        self.advance_write(count);
+    }
+
+    fn bytes_mut<'this>(&'this mut self) -> &'this mut [MaybeUninit<u8>] {
+        let [left, right] = self.get_avail();
+        let slice = match (left.is_empty(), right.is_empty()) {
+            (true, true) => left,
+            (true, false) => right,
+            (false, true) => left,
+            (false, false) => left,
+        };
+        // As far as I can tell it is perfectly safe to convert from u8 to MaybeUninit<u8>.
+        unsafe {
+            transmute::<&'this mut [u8], &'this mut [MaybeUninit<u8>]>(slice)
+        }
+    }
+
+    fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes_rs::buf::IoSliceMut<'a>]) -> usize {
+        let [left, right] = self.get_avail();
+        let mut count = 0;
+        if let Some(slice) = dst.get_mut(0) {
+            count += 1;
+            *slice = bytes_rs::buf::IoSliceMut::from(left);
+        }
+        if let Some(slice) = dst.get_mut(1) {
+            count += 1;
+            *slice = bytes_rs::buf::IoSliceMut::from(right);
+        }
+        count
     }
 }
 

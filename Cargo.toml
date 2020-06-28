@@ -12,6 +12,10 @@ keywords = ["buffer", "bytes", "circular", "ring"]
 
 [features]
 nightly = []
+bytes = ["bytes-rs"]
+
+[dependencies]
+bytes-rs = { version = "0.5", optional = true, package = "bytes" }
 
 [dev-dependencies]
 vecio = "0.1.0"
