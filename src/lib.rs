@@ -612,9 +612,7 @@ impl bytes_rs::BufMut for CircBuf {
             (false, false) => left,
         };
         // As far as I can tell it is perfectly safe to convert from u8 to MaybeUninit<u8>.
-        unsafe {
-            transmute::<&'this mut [u8], &'this mut [MaybeUninit<u8>]>(slice)
-        }
+        unsafe { transmute::<&'this mut [u8], &'this mut [MaybeUninit<u8>]>(slice) }
     }
 
     fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes_rs::buf::IoSliceMut<'a>]) -> usize {
@@ -860,12 +858,10 @@ mod tests {
             assert_eq!(bufs.len(), 2);
             assert_eq!(bufs[0].len(), 10);
             assert_eq!(bufs[1].len(), 0);
-            assert!(
-                b"funkytowns"
-                    .iter()
-                    .zip(bufs[0].iter())
-                    .all(|(a, b)| a == b)
-            );
+            assert!(b"funkytowns"
+                .iter()
+                .zip(bufs[0].iter())
+                .all(|(a, b)| a == b));
         }
 
         // test when the buffer wraps around
@@ -959,7 +955,6 @@ mod tests {
         assert_eq!(s, "fizzbuzz");
     }
 
-
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_buf_and_bufmut() {
@@ -969,13 +964,17 @@ mod tests {
 
         assert_eq!(c.remaining(), 0);
         assert_eq!(c.remaining_mut(), 3);
-        unsafe { c.advance_mut(2); }
+        unsafe {
+            c.advance_mut(2);
+        }
         assert_eq!(c.remaining(), 2);
         assert_eq!(c.remaining_mut(), 1);
         c.advance(1);
         assert_eq!(c.remaining(), 1);
         assert_eq!(c.remaining_mut(), 2);
-        unsafe { c.advance_mut(1); }
+        unsafe {
+            c.advance_mut(1);
+        }
         assert_eq!(c.remaining(), 2);
         assert_eq!(c.remaining_mut(), 1);
 
@@ -990,7 +989,10 @@ mod tests {
 
         let b1: &mut [u8] = &mut [];
         let b2: &mut [u8] = &mut [];
-        let mut dst_mut = [bytes_rs::buf::IoSliceMut::from(b1), bytes_rs::buf::IoSliceMut::from(b2)];
+        let mut dst_mut = [
+            bytes_rs::buf::IoSliceMut::from(b1),
+            bytes_rs::buf::IoSliceMut::from(b2),
+        ];
 
         assert_eq!(c.bytes_vectored_mut(&mut dst_mut[..]), 2);
 
@@ -1010,7 +1012,9 @@ mod tests {
         assert!(!c.has_remaining());
         assert!(c.has_remaining_mut());
 
-        unsafe { c.advance_mut(3); }
+        unsafe {
+            c.advance_mut(3);
+        }
 
         assert_eq!(c.remaining(), 3);
         assert_eq!(c.remaining_mut(), 0);
