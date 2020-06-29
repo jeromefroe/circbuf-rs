@@ -1,6 +1,6 @@
 [package]
 name = "circbuf"
-version = "0.1.4"
+version = "0.2.0"
 authors = ["Jerome Froelich <jeromefroelich@hotmail.com>"]
 description = "A growable circular buffer for working with bytes"
 homepage = "https://github.com/jeromefroe/circbuf-rs"
