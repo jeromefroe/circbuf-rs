@@ -13,6 +13,16 @@ manages a buffer of bytes allocated on the heap. The buffer can be grown when ne
 and can return slices into its internal buffer that can be used for both normal IO
 (`read` and `write`) as well as vector IO (`readv` and `writev`).
 
+## `bytes` support
+
+If the `bytes` feature flag is enabled, then the [bytes](https://github.com/tokio-rs/bytes)
+crate will be added as a dependency and the `Buf` and `BufMut` traits implemented for
+`CircBuf`. The optional vectored read/write functions are implemented, allowing you to use
+the `CircBuf` for efficient vectored IO operations with libraries such as `tokio`. See
+for example the [read_buf](https://docs.rs/tokio/0.2.21/tokio/io/trait.AsyncReadExt.html#method.read_buf)
+and [write_buf](https://docs.rs/tokio/0.2.21/tokio/io/trait.AsyncWriteExt.html#method.write_buf)
+methods, which can accept a `CircBuf` when the `bytes` feature flag is enabled.
+
 ## Example
 
 Below is a simple example of a server which makes use of a `CircBuf` to read messages
