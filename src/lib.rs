@@ -25,6 +25,11 @@
 //! and can return slices into its internal buffer that can be used for both normal IO
 //! (e.g. `read` and `write`) as well as vector IO (`readv` and `writev`).
 //!
+//! ## Feature flags
+//!
+//! - `bytes`: Adds a dependency on the `bytes` crate and implements the `Buf` and `BufMut`
+//! traits from that crate.
+//!
 //! ## Example
 //!
 //! Below is a simple example of a server which makes use of a `CircBuf` to read messages
@@ -112,6 +117,9 @@
 
 #[cfg(feature = "nightly")]
 extern crate test;
+
+#[cfg(feature = "bytes")]
+extern crate bytes_rs;
 
 use std::boxed::Box;
 use std::error;
@@ -569,16 +577,16 @@ impl bytes_rs::Buf for CircBuf {
         }
     }
 
-    fn bytes_vectored<'a>(&'a self, dst: &mut [std::io::IoSlice<'a>]) -> usize {
+    fn bytes_vectored<'a>(&'a self, dst: &mut [io::IoSlice<'a>]) -> usize {
         let [left, right] = self.get_bytes();
         let mut count = 0;
         if let Some(slice) = dst.get_mut(0) {
             count += 1;
-            *slice = std::io::IoSlice::new(left);
+            *slice = io::IoSlice::new(left);
         }
         if let Some(slice) = dst.get_mut(1) {
             count += 1;
-            *slice = std::io::IoSlice::new(right);
+            *slice = io::IoSlice::new(right);
         }
         count
     }
@@ -949,6 +957,102 @@ mod tests {
         let mut s = String::new();
         assert_eq!(c.read_to_string(&mut s).unwrap(), 8);
         assert_eq!(s, "fizzbuzz");
+    }
+
+
+    #[cfg(feature = "bytes")]
+    #[test]
+    fn bytes_buf_and_bufmut() {
+        use bytes_rs::{Buf, BufMut};
+
+        let mut c = CircBuf::with_capacity(4).unwrap();
+
+        assert_eq!(c.remaining(), 0);
+        assert_eq!(c.remaining_mut(), 3);
+        unsafe { c.advance_mut(2); }
+        assert_eq!(c.remaining(), 2);
+        assert_eq!(c.remaining_mut(), 1);
+        c.advance(1);
+        assert_eq!(c.remaining(), 1);
+        assert_eq!(c.remaining_mut(), 2);
+        unsafe { c.advance_mut(1); }
+        assert_eq!(c.remaining(), 2);
+        assert_eq!(c.remaining_mut(), 1);
+
+        assert_eq!(<CircBuf as Buf>::bytes(&c).len(), 2);
+        assert_eq!(c.bytes_mut().len(), 1);
+
+        let mut dst = [std::io::IoSlice::new(&[]); 2];
+        assert_eq!(c.bytes_vectored(&mut dst[..]), 2);
+
+        assert_eq!(dst[0].len(), 2);
+        assert_eq!(dst[1].len(), 0);
+
+        let b1: &mut [u8] = &mut [];
+        let b2: &mut [u8] = &mut [];
+        let mut dst_mut = [bytes_rs::buf::IoSliceMut::from(b1), bytes_rs::buf::IoSliceMut::from(b2)];
+
+        assert_eq!(c.bytes_vectored_mut(&mut dst_mut[..]), 2);
+
+        assert!(c.has_remaining());
+        assert!(c.has_remaining_mut());
+    }
+
+    #[cfg(feature = "bytes")]
+    #[test]
+    fn bytes_buf_remaining() {
+        use bytes_rs::{Buf, BufMut};
+
+        let mut c = CircBuf::with_capacity(4).unwrap();
+
+        assert_eq!(c.remaining(), 0);
+        assert_eq!(c.remaining_mut(), 3);
+        assert!(!c.has_remaining());
+        assert!(c.has_remaining_mut());
+
+        unsafe { c.advance_mut(3); }
+
+        assert_eq!(c.remaining(), 3);
+        assert_eq!(c.remaining_mut(), 0);
+        assert!(c.has_remaining());
+        assert!(!c.has_remaining_mut());
+
+        c.advance(2);
+
+        assert_eq!(c.remaining(), 1);
+        assert_eq!(c.remaining_mut(), 2);
+        assert!(c.has_remaining());
+        assert!(c.has_remaining_mut());
+
+        c.advance(1);
+
+        assert_eq!(c.remaining(), 0);
+        assert_eq!(c.remaining_mut(), 3);
+        assert!(!c.has_remaining());
+        assert!(c.has_remaining_mut());
+    }
+
+    #[cfg(feature = "bytes")]
+    #[test]
+    fn bytes_bufmut_hello() {
+        use bytes_rs::{Buf, BufMut};
+
+        let mut c = CircBuf::with_capacity(16).unwrap();
+
+        unsafe {
+            c.bytes_mut()[0].as_mut_ptr().write(b'h');
+            c.bytes_mut()[1].as_mut_ptr().write(b'e');
+
+            c.advance_mut(2);
+
+            c.bytes_mut()[0].as_mut_ptr().write(b'l');
+            c.bytes_mut()[1].as_mut_ptr().write(b'l');
+            c.bytes_mut()[2].as_mut_ptr().write(b'o');
+
+            c.advance_mut(3);
+        }
+
+        assert_eq!(c.get_bytes()[0], b"hello");
     }
 
     #[cfg(feature = "nightly")]

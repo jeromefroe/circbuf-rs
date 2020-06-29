@@ -12,10 +12,11 @@ keywords = ["buffer", "bytes", "circular", "ring"]
 
 [features]
 nightly = []
-bytes = ["bytes-rs"]
+bytes = ["bytes_rs"]
 
 [dependencies]
-bytes-rs = { version = "0.5", optional = true, package = "bytes" }
+# Rename because a dependency can't have the same name as a feature.
+bytes_rs = { version = "0.5", optional = true, package = "bytes" }
 
 [dev-dependencies]
 vecio = "0.1.0"
