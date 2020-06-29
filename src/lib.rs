@@ -125,7 +125,6 @@ use std::boxed::Box;
 use std::error;
 use std::fmt;
 use std::io;
-use std::mem::{transmute, MaybeUninit};
 use std::ptr::copy_nonoverlapping;
 use std::slice::from_raw_parts;
 use std::slice::from_raw_parts_mut;
@@ -166,7 +165,7 @@ impl error::Error for CircBufError {
         }
     }
 
-    fn cause(&self) -> Option<&error::Error> {
+    fn cause(&self) -> Option<&dyn error::Error> {
         None
     }
 }
@@ -637,7 +636,6 @@ mod tests {
     use self::vecio::Rawv;
     use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
     use std::env;
-    use std::error::Error;
     use std::fs::OpenOptions;
     use std::io::{Read, Seek, SeekFrom, Write};
 
@@ -673,8 +671,8 @@ mod tests {
         c.put(3).unwrap();
 
         assert_eq!(
-            c.put(4).unwrap_err().description(),
-            CircBufError::BufFull.description()
+            c.put(4).unwrap_err().to_string(),
+            CircBufError::BufFull.to_string()
         );
         assert_eq!(c.avail(), 0);
         assert_eq!(c.len(), 3);
@@ -687,8 +685,8 @@ mod tests {
         assert_eq!(c.peek().unwrap(), 3);
         assert_eq!(c.get().unwrap(), 3);
         assert_eq!(
-            c.get().unwrap_err().description(),
-            CircBufError::BufEmpty.description()
+            c.get().unwrap_err().to_string(),
+            CircBufError::BufEmpty.to_string()
         );
 
         assert_eq!(c.avail(), 3);
