@@ -602,7 +602,7 @@ impl bytes_rs::BufMut for CircBuf {
         self.advance_write(count);
     }
 
-    fn bytes_mut<'this>(&'this mut self) -> &'this mut [MaybeUninit<u8>] {
+    fn bytes_mut<'this>(&'this mut self) -> &'this mut [std::mem::MaybeUninit<u8>] {
         let [left, right] = self.get_avail();
         let slice = match (left.is_empty(), right.is_empty()) {
             (true, true) => left,
@@ -611,7 +611,9 @@ impl bytes_rs::BufMut for CircBuf {
             (false, false) => left,
         };
         // As far as I can tell it is perfectly safe to convert from u8 to MaybeUninit<u8>.
-        unsafe { transmute::<&'this mut [u8], &'this mut [MaybeUninit<u8>]>(slice) }
+        unsafe {
+            std::mem::transmute::<&'this mut [u8], &'this mut [std::mem::MaybeUninit<u8>]>(slice)
+        }
     }
 
     fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes_rs::buf::IoSliceMut<'a>]) -> usize {
