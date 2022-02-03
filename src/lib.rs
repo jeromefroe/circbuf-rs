@@ -635,6 +635,7 @@ impl bytes_rs::BufMut for CircBuf {
 mod tests {
     extern crate vecio;
 
+    #[cfg(unix)]
     use self::vecio::Rawv;
     use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
     use std::env;
@@ -921,6 +922,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn vecio() {
         let mut c = CircBuf::with_capacity(16).unwrap();
 
@@ -1039,7 +1041,7 @@ mod tests {
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_bufmut_hello() {
-        use bytes_rs::{Buf, BufMut};
+        use bytes_rs::BufMut;
 
         let mut c = CircBuf::with_capacity(16).unwrap();
 
@@ -1090,6 +1092,7 @@ mod tests {
     }
 
     #[cfg(feature = "nightly")]
+    #[cfg(unix)]
     #[bench]
     pub fn vector_read(b: &mut Bencher) {
         let mut c = CircBuf::with_capacity(16).unwrap();
