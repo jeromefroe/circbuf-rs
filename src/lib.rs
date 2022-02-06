@@ -548,9 +548,8 @@ impl io::Write for CircBuf {
         Ok(num_to_write)
     }
 
-    /// Clear the buffer by setting the read and write pointers to 0.
+    /// Do nothing
     fn flush(&mut self) -> io::Result<()> {
-        self.clear();
         Ok(())
     }
 }
