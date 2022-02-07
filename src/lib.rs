@@ -601,7 +601,7 @@ impl bytes_rs::BufMut for CircBuf {
         self.advance_write(count);
     }
 
-    fn bytes_mut<'this>(&'this mut self) -> &'this mut [MaybeUninit<u8>] {
+    fn bytes_mut<'this>(&'this mut self) -> &'this mut [std::mem::MaybeUninit<u8>] {
         let [left, right] = self.get_avail();
         let slice = match (left.is_empty(), right.is_empty()) {
             (true, true) => left,
@@ -610,7 +610,9 @@ impl bytes_rs::BufMut for CircBuf {
             (false, false) => left,
         };
         // As far as I can tell it is perfectly safe to convert from u8 to MaybeUninit<u8>.
-        unsafe { transmute::<&'this mut [u8], &'this mut [MaybeUninit<u8>]>(slice) }
+        unsafe {
+            std::mem::transmute::<&'this mut [u8], &'this mut [std::mem::MaybeUninit<u8>]>(slice)
+        }
     }
 
     fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes_rs::buf::IoSliceMut<'a>]) -> usize {
@@ -632,6 +634,7 @@ impl bytes_rs::BufMut for CircBuf {
 mod tests {
     extern crate vecio;
 
+    #[cfg(unix)]
     use self::vecio::Rawv;
     use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
     use std::env;
@@ -918,6 +921,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn vecio() {
         let mut c = CircBuf::with_capacity(16).unwrap();
 
@@ -1036,7 +1040,7 @@ mod tests {
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_bufmut_hello() {
-        use bytes_rs::{Buf, BufMut};
+        use bytes_rs::BufMut;
 
         let mut c = CircBuf::with_capacity(16).unwrap();
 
@@ -1087,6 +1091,7 @@ mod tests {
     }
 
     #[cfg(feature = "nightly")]
+    #[cfg(unix)]
     #[bench]
     pub fn vector_read(b: &mut Bencher) {
         let mut c = CircBuf::with_capacity(16).unwrap();
