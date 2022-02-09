@@ -1,0 +1,115 @@
+name: Rust
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Build debug
+        run: cargo build --verbose
+        
+      - name: Build release
+        run: cargo build --release --verbose
+        
+      - uses: actions/upload-artifact@master
+        with:
+          name: cargo-artefacts
+          path: target
+        
+  tests:
+    runs-on: ubuntu-latest
+    needs: ['build']
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - uses: actions/download-artifact@master
+        with:
+          name: cargo-artefacts
+          path: target
+          
+      - name: Check code format
+        run: cargo fmt -- --check
+        
+      - name: Run cargo-tarpaulin in debug
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: '0.15.0'
+          args: "-- --test-threads 1"
+          
+      - name: Run cargo-tarpaulin in release
+        uses: actions-rs/tarpaulin@v0.1
+        with:
+          version: '0.15.0'
+          args: "--release -- --test-threads 1"
+
+      - name: Archive code coverage results
+        uses: actions/upload-artifact@v1
+        with:
+          name: coverage
+          path: cobertura.xml
+          
+  coverage:
+    runs-on: ubuntu-latest
+    needs: ['tests']
+    steps:
+      - uses: actions/download-artifact@master
+        with:
+          name: coverage
+          path: cobertura.xml
+          
+      - name: Get coverage value
+        id: get_coverage
+        shell: bash
+        run: |
+          COV=$(sed -n '/line-rate=/{s/.*line-rate=//;s/ .*//;p;}' cobertura.xml/cobertura.xml) && COV=${COV:3:2}
+          echo "::set-output name=COVERAGE::$COV"
+      - name: Badge color
+        id: get_badge_color
+        shell: bash
+        run: |
+          COV=${{ steps.get_coverage.outputs.COVERAGE }}
+          BADGE_STYLE="flat"
+          BAD_THRESHOLD=50
+          AVERAGE_THRESHOLD=75
+          ABOVE_AVERAGE_THRESHOLD=90
+
+          BAD_COLOR="red"
+          AVERAGE_COLOR="yellow"
+          ABOVE_AVERAGE_COLOR="green"
+          GOOD_COLOR="brightgreen"
+
+          if (( $COV > $ABOVE_AVERAGE_THRESHOLD )); then
+            badge_color=$ABOVE_AVERAGE_COLOR
+          fi
+            
+          if (( $COV > $AVERAGE_THRESHOLD && $COV < $ABOVE_AVERAGE_THRESHOLD )); then
+            badge_color=$AVERAGE_COLOR
+          fi 
+
+          if (( $COV > $BAD_THRESHOLD && $COV < $AVERAGE_THRESHOLD || $COV < $BAD_THRESHOLD )); then
+            badge_color=$BAD_COLOR
+          fi
+          
+          echo "::set-output name=COLOR::$badge_color"
+          
+      - name: Dynamic Badges
+        uses: Schneegans/dynamic-badges-action@v1.1.0
+        with:
+          auth: ${{ secrets.CREATE_GIST_TOKEN }}
+          gistID: 84fff83b81f73ee44837d2e538507cad
+          filename: circbuf-rs.coverage.json
+          label: coverage
+          message: "${{ steps.get_coverage.outputs.COVERAGE }}"
+          color: "${{ steps.get_badge_color.outputs.COLOR }}"
