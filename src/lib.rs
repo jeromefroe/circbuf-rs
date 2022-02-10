@@ -907,8 +907,8 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn vecio() {
-        use vecio::Rawv;
         use std::io::{Seek, SeekFrom};
+        use vecio::Rawv;
 
         let mut c = CircBuf::with_capacity(16).unwrap();
 
