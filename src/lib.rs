@@ -113,13 +113,6 @@
 //!     }
 //! }
 //! ```
-#![cfg_attr(feature = "nightly", feature(test))]
-
-#[cfg(feature = "nightly")]
-extern crate test;
-
-#[cfg(feature = "bytes")]
-extern crate bytes_rs;
 
 use std::boxed::Box;
 use std::error;
@@ -555,7 +548,7 @@ impl io::Write for CircBuf {
 }
 
 #[cfg(feature = "bytes")]
-impl bytes_rs::Buf for CircBuf {
+impl bytes::Buf for CircBuf {
     fn remaining(&self) -> usize {
         self.len()
     }
@@ -591,7 +584,7 @@ impl bytes_rs::Buf for CircBuf {
 }
 
 #[cfg(feature = "bytes")]
-impl bytes_rs::BufMut for CircBuf {
+impl bytes::BufMut for CircBuf {
     fn remaining_mut(&self) -> usize {
         self.avail()
     }
@@ -615,16 +608,16 @@ impl bytes_rs::BufMut for CircBuf {
         }
     }
 
-    fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes_rs::buf::IoSliceMut<'a>]) -> usize {
+    fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes::buf::IoSliceMut<'a>]) -> usize {
         let [left, right] = self.get_avail();
         let mut count = 0;
         if let Some(slice) = dst.get_mut(0) {
             count += 1;
-            *slice = bytes_rs::buf::IoSliceMut::from(left);
+            *slice = bytes::buf::IoSliceMut::from(left);
         }
         if let Some(slice) = dst.get_mut(1) {
             count += 1;
-            *slice = bytes_rs::buf::IoSliceMut::from(right);
+            *slice = bytes::buf::IoSliceMut::from(right);
         }
         count
     }
@@ -632,17 +625,8 @@ impl bytes_rs::BufMut for CircBuf {
 
 #[cfg(test)]
 mod tests {
-    extern crate vecio;
-
-    #[cfg(unix)]
-    use self::vecio::Rawv;
     use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
-    use std::env;
-    use std::fs::OpenOptions;
-    use std::io::{Read, Seek, SeekFrom, Write};
-
-    #[cfg(feature = "nightly")]
-    use test::Bencher;
+    use std::io::{Read, Write};
 
     #[test]
     fn create_circbuf() {
@@ -923,19 +907,12 @@ mod tests {
     #[test]
     #[cfg(unix)]
     fn vecio() {
+        use std::io::{Seek, SeekFrom};
+        use vecio::Rawv;
+
         let mut c = CircBuf::with_capacity(16).unwrap();
 
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
-
+        let mut file = tempfile::tempfile().unwrap();
         assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
         file.seek(SeekFrom::Current(-12)).unwrap();
 
@@ -959,7 +936,7 @@ mod tests {
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_buf_and_bufmut() {
-        use bytes_rs::{Buf, BufMut};
+        use bytes::{Buf, BufMut};
 
         let mut c = CircBuf::with_capacity(4).unwrap();
 
@@ -991,8 +968,8 @@ mod tests {
         let b1: &mut [u8] = &mut [];
         let b2: &mut [u8] = &mut [];
         let mut dst_mut = [
-            bytes_rs::buf::IoSliceMut::from(b1),
-            bytes_rs::buf::IoSliceMut::from(b2),
+            bytes::buf::IoSliceMut::from(b1),
+            bytes::buf::IoSliceMut::from(b2),
         ];
 
         assert_eq!(c.bytes_vectored_mut(&mut dst_mut[..]), 2);
@@ -1004,7 +981,7 @@ mod tests {
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_buf_remaining() {
-        use bytes_rs::{Buf, BufMut};
+        use bytes::{Buf, BufMut};
 
         let mut c = CircBuf::with_capacity(4).unwrap();
 
@@ -1040,7 +1017,7 @@ mod tests {
     #[cfg(feature = "bytes")]
     #[test]
     fn bytes_bufmut_hello() {
-        use bytes_rs::BufMut;
+        use bytes::BufMut;
 
         let mut c = CircBuf::with_capacity(16).unwrap();
 
@@ -1058,85 +1035,5 @@ mod tests {
         }
 
         assert_eq!(c.get_bytes()[0], b"hello");
-    }
-
-    #[cfg(feature = "nightly")]
-    #[bench]
-    pub fn normal_read(b: &mut Bencher) {
-        let mut c = CircBuf::with_capacity(16).unwrap();
-
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
-
-        assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
-        file.seek(SeekFrom::Current(-12)).unwrap();
-
-        c.advance_read(8);
-        c.advance_write(8);
-        let mut bufs = c.get_avail();
-
-        b.iter(|| {
-            file.read(&mut bufs[0]).unwrap();
-            file.read(&mut bufs[1]).unwrap();
-            file.seek(SeekFrom::Current(-12)).unwrap();
-        })
-    }
-
-    #[cfg(feature = "nightly")]
-    #[cfg(unix)]
-    #[bench]
-    pub fn vector_read(b: &mut Bencher) {
-        let mut c = CircBuf::with_capacity(16).unwrap();
-
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
-
-        assert_eq!(file.write(b"foo\nbar\nbaz\n").unwrap(), 12);
-        file.seek(SeekFrom::Current(-12)).unwrap();
-
-        c.advance_read(8);
-        c.advance_write(8);
-        let mut bufs = c.get_avail();
-
-        b.iter(|| {
-            file.readv(&mut bufs).unwrap();
-            file.seek(SeekFrom::Current(-12)).unwrap();
-        })
-    }
-
-    #[cfg(feature = "nightly")]
-    #[bench]
-    // we call seek in iter in both benches above so lets get a base time for it
-    pub fn seek_base(b: &mut Bencher) {
-        let mut path = env::temp_dir();
-        path.push("circbuf-rs-test.txt");
-
-        let mut file = OpenOptions::new()
-            .read(true)
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(path.to_str().unwrap())
-            .unwrap();
-
-        b.iter(|| {
-            file.seek(SeekFrom::Current(1)).unwrap();
-        })
     }
 }

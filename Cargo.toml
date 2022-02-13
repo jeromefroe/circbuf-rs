@@ -9,14 +9,13 @@ documentation = "https://docs.rs/circbuf/"
 readme = "README.md"
 license = "MIT"
 keywords = ["buffer", "bytes", "circular", "ring"]
+edition = "2021"
 
 [features]
-nightly = []
-bytes = ["bytes_rs"]
 
 [dependencies]
-# Rename because a dependency can't have the same name as a feature.
-bytes_rs = { version = "0.5", optional = true, package = "bytes" }
+bytes = { version = "0.5", optional = true }
 
 [dev-dependencies]
 vecio = "0.1.0"
+tempfile = "3.3.0"
