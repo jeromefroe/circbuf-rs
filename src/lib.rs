@@ -114,6 +114,9 @@
 //! }
 //! ```
 
+#[cfg(feature = "bytes")]
+mod bytes;
+
 use std::boxed::Box;
 use std::error;
 use std::fmt;
@@ -547,82 +550,6 @@ impl io::Write for CircBuf {
     }
 }
 
-#[cfg(feature = "bytes")]
-impl bytes::Buf for CircBuf {
-    fn remaining(&self) -> usize {
-        self.len()
-    }
-
-    fn advance(&mut self, count: usize) {
-        assert!(count == 0 || count <= self.remaining());
-        self.advance_read(count);
-    }
-
-    fn bytes(&self) -> &[u8] {
-        let [left, right] = self.get_bytes();
-        match (left.is_empty(), right.is_empty()) {
-            (true, true) => left,
-            (true, false) => right,
-            (false, true) => left,
-            (false, false) => left,
-        }
-    }
-
-    fn bytes_vectored<'a>(&'a self, dst: &mut [io::IoSlice<'a>]) -> usize {
-        let [left, right] = self.get_bytes();
-        let mut count = 0;
-        if let Some(slice) = dst.get_mut(0) {
-            count += 1;
-            *slice = io::IoSlice::new(left);
-        }
-        if let Some(slice) = dst.get_mut(1) {
-            count += 1;
-            *slice = io::IoSlice::new(right);
-        }
-        count
-    }
-}
-
-#[cfg(feature = "bytes")]
-impl bytes::BufMut for CircBuf {
-    fn remaining_mut(&self) -> usize {
-        self.avail()
-    }
-
-    unsafe fn advance_mut(&mut self, count: usize) {
-        assert!(count == 0 || count <= self.remaining_mut());
-        self.advance_write(count);
-    }
-
-    fn bytes_mut<'this>(&'this mut self) -> &'this mut [std::mem::MaybeUninit<u8>] {
-        let [left, right] = self.get_avail();
-        let slice = match (left.is_empty(), right.is_empty()) {
-            (true, true) => left,
-            (true, false) => right,
-            (false, true) => left,
-            (false, false) => left,
-        };
-        // As far as I can tell it is perfectly safe to convert from u8 to MaybeUninit<u8>.
-        unsafe {
-            std::mem::transmute::<&'this mut [u8], &'this mut [std::mem::MaybeUninit<u8>]>(slice)
-        }
-    }
-
-    fn bytes_vectored_mut<'a>(&'a mut self, dst: &mut [bytes::buf::IoSliceMut<'a>]) -> usize {
-        let [left, right] = self.get_avail();
-        let mut count = 0;
-        if let Some(slice) = dst.get_mut(0) {
-            count += 1;
-            *slice = bytes::buf::IoSliceMut::from(left);
-        }
-        if let Some(slice) = dst.get_mut(1) {
-            count += 1;
-            *slice = bytes::buf::IoSliceMut::from(right);
-        }
-        count
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::{CircBuf, CircBufError, DEFAULT_CAPACITY};
@@ -931,109 +858,5 @@ mod tests {
         let mut s = String::new();
         assert_eq!(c.read_to_string(&mut s).unwrap(), 8);
         assert_eq!(s, "fizzbuzz");
-    }
-
-    #[cfg(feature = "bytes")]
-    #[test]
-    fn bytes_buf_and_bufmut() {
-        use bytes::{Buf, BufMut};
-
-        let mut c = CircBuf::with_capacity(4).unwrap();
-
-        assert_eq!(c.remaining(), 0);
-        assert_eq!(c.remaining_mut(), 3);
-        unsafe {
-            c.advance_mut(2);
-        }
-        assert_eq!(c.remaining(), 2);
-        assert_eq!(c.remaining_mut(), 1);
-        c.advance(1);
-        assert_eq!(c.remaining(), 1);
-        assert_eq!(c.remaining_mut(), 2);
-        unsafe {
-            c.advance_mut(1);
-        }
-        assert_eq!(c.remaining(), 2);
-        assert_eq!(c.remaining_mut(), 1);
-
-        assert_eq!(<CircBuf as Buf>::bytes(&c).len(), 2);
-        assert_eq!(c.bytes_mut().len(), 1);
-
-        let mut dst = [std::io::IoSlice::new(&[]); 2];
-        assert_eq!(c.bytes_vectored(&mut dst[..]), 2);
-
-        assert_eq!(dst[0].len(), 2);
-        assert_eq!(dst[1].len(), 0);
-
-        let b1: &mut [u8] = &mut [];
-        let b2: &mut [u8] = &mut [];
-        let mut dst_mut = [
-            bytes::buf::IoSliceMut::from(b1),
-            bytes::buf::IoSliceMut::from(b2),
-        ];
-
-        assert_eq!(c.bytes_vectored_mut(&mut dst_mut[..]), 2);
-
-        assert!(c.has_remaining());
-        assert!(c.has_remaining_mut());
-    }
-
-    #[cfg(feature = "bytes")]
-    #[test]
-    fn bytes_buf_remaining() {
-        use bytes::{Buf, BufMut};
-
-        let mut c = CircBuf::with_capacity(4).unwrap();
-
-        assert_eq!(c.remaining(), 0);
-        assert_eq!(c.remaining_mut(), 3);
-        assert!(!c.has_remaining());
-        assert!(c.has_remaining_mut());
-
-        unsafe {
-            c.advance_mut(3);
-        }
-
-        assert_eq!(c.remaining(), 3);
-        assert_eq!(c.remaining_mut(), 0);
-        assert!(c.has_remaining());
-        assert!(!c.has_remaining_mut());
-
-        c.advance(2);
-
-        assert_eq!(c.remaining(), 1);
-        assert_eq!(c.remaining_mut(), 2);
-        assert!(c.has_remaining());
-        assert!(c.has_remaining_mut());
-
-        c.advance(1);
-
-        assert_eq!(c.remaining(), 0);
-        assert_eq!(c.remaining_mut(), 3);
-        assert!(!c.has_remaining());
-        assert!(c.has_remaining_mut());
-    }
-
-    #[cfg(feature = "bytes")]
-    #[test]
-    fn bytes_bufmut_hello() {
-        use bytes::BufMut;
-
-        let mut c = CircBuf::with_capacity(16).unwrap();
-
-        unsafe {
-            c.bytes_mut()[0].as_mut_ptr().write(b'h');
-            c.bytes_mut()[1].as_mut_ptr().write(b'e');
-
-            c.advance_mut(2);
-
-            c.bytes_mut()[0].as_mut_ptr().write(b'l');
-            c.bytes_mut()[1].as_mut_ptr().write(b'l');
-            c.bytes_mut()[2].as_mut_ptr().write(b'o');
-
-            c.advance_mut(3);
-        }
-
-        assert_eq!(c.get_bytes()[0], b"hello");
     }
 }
