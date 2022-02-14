@@ -41,8 +41,8 @@ jobs:
           cargo update -Z minimal-versions
           cargo hack check --all-features --ignore-private
 
-  docs:
-    name: docs
+  doc:
+    name: doc
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
@@ -242,7 +242,7 @@ jobs:
       - name: Cargo test release
         run: cargo test --release --all-features
         
-  benchmark:
+  bench:
     runs-on: ubuntu-latest
     needs: ["stable-tests"]
     steps:
@@ -266,7 +266,7 @@ jobs:
       - name: Archive code coverage results
         uses: actions/upload-artifact@v1
         with:
-          name: benchmark
+          name: benchmarks
           path: bench.txt
           
   coverage:
