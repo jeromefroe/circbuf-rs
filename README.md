@@ -1,7 +1,6 @@
 # CircBuf
-
-[![Build Status](https://travis-ci.org/jeromefroe/circbuf-rs.svg?branch=master)](https://travis-ci.org/jeromefroe/circbuf-rs)
-[![codecov](https://codecov.io/gh/jeromefroe/circbuf-rs/branch/master/graph/badge.svg)](https://codecov.io/gh/jeromefroe/circbuf-rs)
+[![build status](https://github.com/jeromefroe/circbuf-rs/actions/workflows/rust.yml/badge.svg)](https://github.com/jeromefroe/circbuf-rs/actions/workflows/rust.yml)
+[![codecov](https://codecov.io/gh/jeromefroe/circbuf-rs/branch/master/graph/badge.svg?token=BVS0QOKZ7W)](https://codecov.io/gh/jeromefroe/circbuf-rs)
 [![crates.io](https://img.shields.io/crates/v/circbuf.svg)](https://crates.io/crates/circbuf/)
 [![docs.rs](https://docs.rs/circbuf/badge.svg)](https://docs.rs/circbuf/)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](https://raw.githubusercontent.com/jeromefroe/circbuf-rs/master/LICENSE)
