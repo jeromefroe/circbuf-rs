@@ -59,6 +59,38 @@ jobs:
           RUSTFLAGS: --cfg docsrs
           RUSTDOCFLAGS: --cfg docsrs -Dwarnings
 
+  fmt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: rustfmt 
+          
+      - name: Check code format
+        run: cargo fmt --all -- --check
+
+  clippy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v2
+        
+      - name: Install latest stable
+        uses: actions-rs/toolchain@v1
+        with:
+            toolchain: stable
+            override: true
+            components: clippy 
+          
+      - name: Check lints
+        run: cargo clippy --all --tests --all-features
+
   stable-build:
     runs-on: ubuntu-latest
     steps:
@@ -152,12 +184,6 @@ jobs:
           name: cargo-artefacts
           path: target
           
-      - name: Check code format
-        run: cargo fmt --all -- --check
-        
-      - name: Check lints
-        run: cargo clippy
-
       - name: Cargo test debug
         run: cargo test --all-features
 
@@ -184,14 +210,6 @@ jobs:
           name: nightly-cargo-artefacts
           path: target
           
-      - name: Check code format
-        continue-on-error: true
-        run: cargo fmt --all -- --check
-      
-      - name: Check lints
-        continue-on-error: true
-        run: cargo clippy
-
       - name: Cargo test debug
         run: cargo test --all-features
 
@@ -218,14 +236,6 @@ jobs:
           name: nightly-cargo-artefacts
           path: target
           
-      - name: Check code format
-        continue-on-error: true
-        run: cargo fmt --all -- --check
-      
-      - name: Check lints
-        continue-on-error: true
-        run: cargo clippy
-
       - name: Cargo test debug
         run: cargo test --all-features
 
@@ -276,4 +286,3 @@ jobs:
         uses: codecov/codecov-action@v1.0.2
         with:
           token: ${{secrets.CODECOV_TOKEN}}
-
