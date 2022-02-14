@@ -10,8 +10,8 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  minimal-versions:
-    name: minimal-versions
+  minimal-rustc-version:
+    name: minimal-rustc-version
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
