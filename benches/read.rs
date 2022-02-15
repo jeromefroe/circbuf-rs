@@ -20,8 +20,8 @@ fn prepare_file() -> File {
 
 fn prepare_circbuf() -> CircBuf {
     let mut c = CircBuf::with_capacity(16).unwrap();
-    c.advance_read(8);
-    c.advance_write(8);
+    c.advance_write_raw(8);
+    c.advance_read_raw(8);
     c
 }
 
@@ -38,8 +38,8 @@ fn normal_read(b: &mut Bencher) {
         let n = n_a + n_b;
         assert_eq!(n, EXPECTED_N);
 
-        c.advance_write(n);
-        c.advance_read(n);
+        c.advance_write_raw(n);
+        c.advance_read_raw(n);
     })
 }
 
@@ -52,7 +52,7 @@ fn writer_read(b: &mut Bencher) {
         file.rewind().unwrap();
         let n = copy(&mut file, &mut c).unwrap() as usize;
         assert_eq!(n, EXPECTED_N);
-        c.advance_read(n);
+        c.advance_read_raw(n);
     })
 }
 
@@ -71,8 +71,8 @@ fn vector_read(b: &mut Bencher) {
         };
         let n = file.read_vectored(bufs.as_mut_slice()).unwrap();
         assert_eq!(n, EXPECTED_N);
-        c.advance_write(n);
-        c.advance_read(n);
+        c.advance_write_raw(n);
+        c.advance_read_raw(n);
     })
 }
 
