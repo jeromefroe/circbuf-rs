@@ -264,7 +264,10 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     needs: ["stable-tests"]
-    steps:          
+    steps:       
+      - name: Checkout repository
+        uses: actions/checkout@v2
+
       - name: Run cargo-tarpaulin in release
         uses: actions-rs/tarpaulin@v0.1
         with:
