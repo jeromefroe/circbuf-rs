@@ -127,15 +127,12 @@ jobs:
             components: rustfmt, clippy
         
       - name: Build debug
-        continue-on-error: true
         run: cargo build --verbose
         
       - name: Build release
-        continue-on-error: true
         run: cargo build --release --verbose
   
       - uses: actions/upload-artifact@master
-        continue-on-error: true
         with:
           name: nightly-cargo-artefacts
           path: target
@@ -152,15 +149,12 @@ jobs:
             components: rustfmt, clippy
         
       - name: Build debug
-        continue-on-error: true
         run: cargo build --verbose
         
       - name: Build release
-        continue-on-error: true
         run: cargo build --release --verbose
   
       - uses: actions/upload-artifact@master
-        continue-on-error: true
         with:
           name: nightly-cargo-artefacts
           path: target
@@ -193,7 +187,6 @@ jobs:
   nightly-tests:
     runs-on: ubuntu-latest
     needs: ['nightly-build']
-    if: success()
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -219,7 +212,6 @@ jobs:
   beta-tests:
     runs-on: ubuntu-latest
     needs: ['beta-build']
-    if: success()
     steps:
       - name: Checkout repository
         uses: actions/checkout@v2
@@ -272,17 +264,14 @@ jobs:
   coverage:
     runs-on: ubuntu-latest
     needs: ["stable-tests"]
-    if: success()
     steps:          
       - name: Run cargo-tarpaulin in release
-        continue-on-error: true
         uses: actions-rs/tarpaulin@v0.1
         with:
           version: '0.15.0'
           args: "--release --all-features -- --test-threads 1"
 
       - name: Upload to codecov.io
-        continue-on-error: true
         uses: codecov/codecov-action@v1.0.2
         with:
           token: ${{secrets.CODECOV_TOKEN}}
