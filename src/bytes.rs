@@ -7,7 +7,7 @@ use bytes::{buf::UninitSlice, Buf, BufMut};
 impl Buf for CircBuf {
     fn advance(&mut self, count: usize) {
         assert!(count == 0 || count <= self.remaining());
-        self.advance_read(count);
+        self.advance_read_raw(count);
     }
 
     fn chunk(&self) -> &[u8] {
@@ -42,10 +42,10 @@ impl Buf for CircBuf {
 unsafe impl BufMut for CircBuf {
     unsafe fn advance_mut(&mut self, count: usize) {
         assert!(count == 0 || count <= self.remaining_mut());
-        self.advance_write(count);
+        self.advance_write_raw(count);
     }
 
-    fn chunk_mut<'this>(&'this mut self) -> &'this mut UninitSlice {
+    fn chunk_mut(&mut self) -> &mut UninitSlice {
         let [left, right] = self.get_avail();
         let slice = match (left.is_empty(), right.is_empty()) {
             (true, true) => left,

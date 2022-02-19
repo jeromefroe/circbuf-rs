@@ -135,11 +135,13 @@ pub const DEFAULT_SIZE_MULTIPLIER: usize = 2;
 ///
 /// The errors that are used with `CircBuf`. Namely, that the buffer is empty, full,
 /// or recieved a `usize` argument which could cause an overflow.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum CircBufError {
     BufEmpty,
     BufFull,
     Overflow,
+    NotEnoughData,
+    NotEnoughPlace,
 }
 
 impl fmt::Display for CircBufError {
@@ -147,24 +149,18 @@ impl fmt::Display for CircBufError {
         match *self {
             CircBufError::BufEmpty => write!(f, "CircBuf is full"),
             CircBufError::BufFull => write!(f, "CircBuf is empty"),
-            CircBufError::Overflow => write!(f, "Value would overflow uszie"),
+            CircBufError::Overflow => write!(f, "Value would overflow usize"),
+            CircBufError::NotEnoughData => {
+                write!(f, "Doesn't have enough data to advance read cursor")
+            }
+            CircBufError::NotEnoughPlace => {
+                write!(f, "Doesn't have enough place to advance write cursor")
+            }
         }
     }
 }
 
-impl error::Error for CircBufError {
-    fn description(&self) -> &str {
-        match *self {
-            CircBufError::BufEmpty => "CircBuf is full",
-            CircBufError::BufFull => "CircBuf is empty",
-            CircBufError::Overflow => "Value would overflow usize",
-        }
-    }
-
-    fn cause(&self) -> Option<&dyn error::Error> {
-        None
-    }
-}
+impl error::Error for CircBufError {}
 
 /// Circular Buffer
 ///
@@ -302,7 +298,7 @@ impl CircBuf {
         }
 
         let val = self.buf[self.read_cursor];
-        self.advance_read(1);
+        self.advance_read_raw(1);
 
         Ok(val)
     }
@@ -315,7 +311,7 @@ impl CircBuf {
         }
 
         self.buf[self.write_cursor] = val;
-        self.advance_write(1);
+        self.advance_write_raw(1);
 
         Ok(())
     }
@@ -325,13 +321,39 @@ impl CircBuf {
     }
 
     /// Advance the buffer's read cursor `num` bytes.
-    pub fn advance_read(&mut self, num: usize) {
+    /// # Warning
+    /// There is no check perform on internal write cursor. This can lead to data lost.
+    pub fn advance_read_raw(&mut self, num: usize) {
         self.read_cursor = Self::cacl_read(self.read_cursor, num, self.buf.len());
     }
 
+    /// Advance the buffer's read cursor `num` bytes.
+    pub fn advance_read(&mut self, num: usize) -> Result<(), CircBufError> {
+        if num > self.len() {
+            Err(CircBufError::NotEnoughData)
+        } else {
+            self.advance_read_raw(num);
+
+            Ok(())
+        }
+    }
+
     /// Advance the buffer's write cursor `num` bytes.
-    pub fn advance_write(&mut self, num: usize) {
+    /// # Warning
+    /// There is no check perform on internal read cursor. This can lead to data lost.
+    pub fn advance_write_raw(&mut self, num: usize) {
         self.write_cursor = (self.write_cursor + num) % self.buf.len();
+    }
+
+    /// Advance the buffer's write cursor `num` bytes.
+    pub fn advance_write(&mut self, num: usize) -> Result<(), CircBufError> {
+        if num > self.avail() {
+            Err(CircBufError::NotEnoughPlace)
+        } else {
+            self.advance_write_raw(num);
+
+            Ok(())
+        }
     }
 
     /// Clear the buffer.
@@ -571,7 +593,7 @@ impl io::Read for CircBuf {
         } else {
             let readed = unsafe { CircBuf::read_peek(&self.buf, buf, len, self.read_cursor)? };
 
-            self.advance_read(readed);
+            self.advance_read_raw(readed);
 
             Ok(readed)
         }
@@ -606,7 +628,7 @@ impl io::Write for CircBuf {
             }
         }
 
-        self.advance_write(num_to_write);
+        self.advance_write_raw(num_to_write);
 
         Ok(num_to_write)
     }
@@ -702,7 +724,7 @@ mod tests {
         assert_eq!(c.find_from_index(3, 2).unwrap(), 4);
         assert!(c.find_from_index(6, 2).is_none());
 
-        c.advance_read(4);
+        c.advance_read(4).unwrap();
 
         assert_eq!(c.find(1).unwrap(), 2);
         assert!(c.find(5).is_none());
@@ -735,8 +757,8 @@ mod tests {
         assert_eq!(c.get().unwrap(), 3);
 
         // grow a buffer that wraps around
-        c.advance_read(7);
-        c.advance_write(7);
+        c.advance_read_raw(7);
+        c.advance_write_raw(7);
 
         c.put(1).unwrap();
         c.put(2).unwrap();
@@ -773,8 +795,8 @@ mod tests {
         assert_eq!(c.len(), 0);
 
         // test read and write on a buffer that wraps around
-        c.advance_read(7);
-        c.advance_write(7);
+        c.advance_read_raw(7);
+        c.advance_write_raw(7);
 
         assert_eq!(c.write(b"foo").unwrap(), 3);
         assert_eq!(c.write(b"bar").unwrap(), 3);
@@ -843,7 +865,7 @@ mod tests {
         }
 
         // test when the buffer wraps around
-        c.advance_read(10);
+        c.advance_read(10).unwrap();
         assert_eq!(c.write(b"brickhouse").unwrap(), 10);
         assert_eq!(c.len(), 10);
         assert_eq!(c.avail(), 5);
