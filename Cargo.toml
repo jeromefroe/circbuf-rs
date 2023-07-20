@@ -13,6 +13,8 @@ edition = "2021"
 rust-version = "1.56"
 
 [features]
+bytes = ["dep:bytes"]
+
 
 [dependencies.bytes]
 version = "1.1.0"
