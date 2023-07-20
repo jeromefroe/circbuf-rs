@@ -938,7 +938,7 @@ mod tests {
             assert_eq!(v, data);
             assert_eq!(c.read_cursor, read_cursor);
 
-            c.advance_read(readed);
+            c.advance_read(readed).unwrap();
         }
     }
 
@@ -960,10 +960,10 @@ mod tests {
         }
 
         // advance the write cursor since we just wrote 12 bytes to the buffer
-        c.advance_write(12);
+        c.advance_write(12).unwrap();
 
         // wrap around the buffer
-        c.advance_read(12);
+        c.advance_read(12).unwrap();
         assert_eq!(c.write(b"fizzbuzz").unwrap(), 8);
 
         let mut s = String::new();

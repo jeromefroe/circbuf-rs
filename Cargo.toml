@@ -13,11 +13,12 @@ edition = "2021"
 rust-version = "1.56"
 
 [features]
+bytes = ["dep:bytes"]
 
-[dependencies.bytes]
-version = "1.1.0"
-optional = true
+
+[dependencies]
+bytes = { version = "1.4.0", optional = true }
 
 [dev-dependencies]
 vecio = "0.1.0"
-tempfile = "3.3.0"
+tempfile = "3.6.0"
