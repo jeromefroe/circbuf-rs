@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.1](https://github.com/jeromefroe/circbuf-rs/tree/0.2.1) - 2023-07-20
+
+- Correct unused `Result` in test.
+- Update dependencies, including configuration of `bytes` feature on the `bytes` crate.
+
 ## [v0.2.0](https://github.com/jeromefroe/circbuf-rs/tree/0.2.0) - 2020-06-29
 
 - Implement `bytes::Buf` and `bytes::BufMut` for `CircBuf`.
